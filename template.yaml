@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Data Processing Workflow for Customer Marketing Preferences
+
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.8
+
+Resources:
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+
+  ValidateSchemaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: validate_schema.lambda_handler
+      Runtime: python3.8
+      CodeUri: ./functions/
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /validate
+            Method: post
+            RestApiId: 
+              Ref: ApiGateway
+
+  RemoveDuplicatesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: remove_duplicates.lambda_handler
+      Runtime: python3.8
+      CodeUri: ./functions/
+
+  ProcessMarketingOptsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: process_marketing_opts.lambda_handler
+      Runtime: python3.8
+      CodeUri: ./functions/
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: 
+            Ref: MarketingPreferencesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: 
+              Ref: MarketingPreferencesTable
+
+  DataProcessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine/data_processing.asl.json
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: 
+              Ref: ValidateSchemaFunction
+        - LambdaInvokePolicy:
+            FunctionName: 
+              Ref: RemoveDuplicatesFunction
+        - LambdaInvokePolicy:
+            FunctionName: 
+              Ref: ProcessMarketingOptsFunction
+
+  MarketingPreferencesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: Email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: Email
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  InvalidRecordsBucket:
+    Type: AWS::S3::Bucket
+
+Outputs:
+  ApiGatewayUrl:
+    Description: "API Gateway endpoint URL"
+    Value: 
+      Fn::Sub: "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  StateMachineArn:
+    Description: "State Machine ARN"
+    Value: 
+      Ref: DataProcessingStateMachine
+  DynamoDBTableName:
+    Description: "DynamoDB Table Name"
+    Value: 
+      Ref: MarketingPreferencesTable
+  InvalidRecordsBucketName:
+    Description: "S3 Bucket for Invalid Records"
+    Value: 
+      Ref: InvalidRecordsBucket

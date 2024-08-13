@@ -1,0 +1,40 @@
+{
+    "Comment": "Data Processing Workflow for Customer Marketing Preferences",
+    "StartAt": "ValidateSchema",
+    "States": {
+      "ValidateSchema": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:ValidateSchemaFunction",
+        "Next": "CheckValidation"
+      },
+      "CheckValidation": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.isValid",
+            "BooleanEquals": true,
+            "Next": "RemoveDuplicates"
+          }
+        ],
+        "Default": "HandleValidationError"
+      },
+      "HandleValidationError": {
+        "Type": "Pass",
+        "Result": {
+          "error": "Schema validation failed",
+          "invalidRecords": "$.invalidRecords"
+        },
+        "End": true
+      },
+      "RemoveDuplicates": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:RemoveDuplicatesFunction",
+        "Next": "ProcessMarketingOpts"
+      },
+      "ProcessMarketingOpts": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:ProcessMarketingOptsFunction",
+        "End": true
+      }
+    }
+  }

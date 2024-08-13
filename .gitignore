@@ -1,0 +1,21 @@
+# Virtual environment
+venv/
+
+# SAM configuration
+samconfig.toml
+
+# AWS SAM build artifacts
+.aws-sam/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+
+# macOS system files
+.DS_Store
+
+# IDE-specific files (e.g., for VS Code)
+.vscode/
